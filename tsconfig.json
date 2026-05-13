@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    // === Extremely light output (almost just type-stripping) ===
+    "target": "ESNext",           // minimal/no transpilation
+    "module": "ESNext",           // 
+    "moduleResolution": "bundler",// modern, clean import handling
+    "verbatimModuleSyntax": true, // keeps import/export syntax 100% untouched
+
+    // === Preserve exact folder structure ===
+    "rootDir": "./src",           // TS source directory
+    "outDir": "./code",          // JS output (EmuDevz uses /code/)
+
+    // === Light & clean ===
+    "declaration": false,         // no .d.ts files yet
+    "sourceMap": false,           // no .js.map files are needed because they should be very close to the TS source
+    "removeComments": true,       // strip comments
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // === Nice-to-haves ===
+    "strict": true,
+    "noEmitOnError": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "code"]
+}

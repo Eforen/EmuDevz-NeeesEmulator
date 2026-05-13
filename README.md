@@ -9,6 +9,10 @@ This repository contains my code for a **NEEES** emulator written while playing 
 
 Working through EmuDevz is meant to be part of the experience. **This repo may spoil puzzles, progression, or implementation details** from the game. If you care about that, play first and come back later.
 
+## Note for code reviewers
+
+If you are reviewing this codebase: some design choices—such as error handling, APIs, or other observable behavior—are constrained by **EmuDevz’s in-game unit tests**. Changing those details for aesthetics or “cleaner” patterns could **break compatibility with the game**. Those spots are intentional concessions to the test harness, not oversights.
+
 ## License
 
 The contents of this repository are licensed under **Creative Commons Attribution-NonCommercial 4.0 International** ([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)). The full legal text is in [`LICENSE`](LICENSE) (the official `legalcode.txt` from Creative Commons).
