@@ -1,2 +1,3 @@
 import Cartridge from "./Cartridge.js";
-export default { Cartridge };
+import CPUMemory from "./CPUMemory.js";
+export default { Cartridge, CPUMemory };
