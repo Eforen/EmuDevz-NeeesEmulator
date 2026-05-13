@@ -29,6 +29,7 @@ export default class Cartridge {
     readonly bytes: Uint8Array;
     readonly header: CartridgeHeader;
     readonly _prg: Uint8Array;
+    _chr: Uint8Array;
 
     constructor(bytes: Uint8Array) {
         this.bytes = bytes;
@@ -52,14 +53,27 @@ export default class Cartridge {
         mapperId: ((bytes[6] & CARTRIDGE_HEADER_FLAG_MASK.MAPPER_ID_NIBBLE)>>4) | (bytes[7] & CARTRIDGE_HEADER_FLAG_MASK.MAPPER_ID_NIBBLE),
         };
 
+        let offset = 16;
         if (this.header.has512BytePadding) {
-            this._prg = this.bytes.slice(16 + 512, 16 + 512 + this.header.prgRomPages * 16384);
+            offset += 512;
+        }
+        const prgSize = this.header.prgRomPages * 16384;
+        this._prg = this.bytes.slice(offset, offset + prgSize);
+
+        offset += prgSize;
+        const chrSize = this.header.chrRomPages * 8192;
+        if (this.header.usesChrRam) {
+            this._chr = new Uint8Array(8192);
         } else {
-            this._prg = this.bytes.slice(16, 16 + this.header.prgRomPages * 16384);
+            this._chr = this.bytes.slice(offset, offset + chrSize);
         }
     }
 
     prg(): Uint8Array {
         return this._prg;
+    }
+    
+    chr(): Uint8Array {
+        return this._chr;
     }
 }
