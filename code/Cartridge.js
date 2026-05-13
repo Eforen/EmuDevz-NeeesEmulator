@@ -8,6 +8,7 @@ const CARTRIDGE_HEADER_FLAG_MASK = {
 export default class Cartridge {
     bytes;
     header;
+    _prg;
     constructor(bytes) {
         this.bytes = bytes;
         if (bytes[0] !== 0x4e ||
@@ -25,5 +26,14 @@ export default class Cartridge {
             mirroringId: (bytes[6] & CARTRIDGE_HEADER_FLAG_MASK.MIRRORING_ID_FOUR_SCREEN) !== 0 ? "FOUR_SCREEN" : ((bytes[6] & CARTRIDGE_HEADER_FLAG_MASK.MIRRORING_ID) !== 0 ? "VERTICAL" : "HORIZONTAL"),
             mapperId: ((bytes[6] & CARTRIDGE_HEADER_FLAG_MASK.MAPPER_ID_NIBBLE) >> 4) | (bytes[7] & CARTRIDGE_HEADER_FLAG_MASK.MAPPER_ID_NIBBLE),
         };
+        if (this.header.has512BytePadding) {
+            this._prg = this.bytes.slice(16 + 512, 16 + 512 + this.header.prgRomPages * 16384);
+        }
+        else {
+            this._prg = this.bytes.slice(16, 16 + this.header.prgRomPages * 16384);
+        }
+    }
+    prg() {
+        return this._prg;
     }
 }
