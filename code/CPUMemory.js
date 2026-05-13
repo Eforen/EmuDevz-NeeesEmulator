@@ -1,8 +1,25 @@
 const RAM_SIZE = 0x0800;
 export default class CPUMemory {
     ram;
+    ppu;
+    apu;
+    mapper;
+    controllers;
+    loaded;
     constructor() {
         this.ram = new Uint8Array(RAM_SIZE);
+        this.ppu = null;
+        this.apu = null;
+        this.mapper = null;
+        this.controllers = null;
+        this.loaded = false;
+    }
+    onLoad(ppu, apu, mapper, controllers) {
+        this.ppu = ppu;
+        this.apu = apu;
+        this.mapper = mapper;
+        this.controllers = controllers;
+        this.loaded = true;
     }
     read(address) {
         if (address >= 0x0000 && address <= 0x07FF)
@@ -11,6 +28,8 @@ export default class CPUMemory {
             return this.read(0x0000 + (address - 0x0800) % 0x0800);
         if (address >= 0x2008 && address <= 0x3fff)
             return this.read(0x2000 + (address - 0x2008) % 0x0008);
+        if (address >= 0x4020 && address <= 0xffff)
+            return this.mapper.cpuRead(address);
         return 0;
     }
     write(address, value) {
@@ -22,5 +41,7 @@ export default class CPUMemory {
             return this.write(0x0000 + (address - 0x0800) % 0x0800, value);
         if (address >= 0x2008 && address <= 0x3fff)
             return this.write(0x2000 + (address - 0x2008) % 0x0008, value);
+        if (address >= 0x4020 && address <= 0xffff)
+            return this.mapper.cpuWrite(address, value);
     }
 }
