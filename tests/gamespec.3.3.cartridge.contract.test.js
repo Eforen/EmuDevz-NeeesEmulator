@@ -11,14 +11,8 @@ function codeUrl(rel) {
   return pathToFileURL(join(codeDir, rel)).href;
 }
 
-/** Minimal ROM buffer with a valid NEEES / iNES-style header prefix */
-function romWithHeader(firstFour = [0x4e, 0x45, 0x53, 0x1a]) {
-  const buf = new Uint8Array(16);
-  buf.set(firstFour, 0);
-  return buf;
-}
+describe("gamespec 3.1 & 3.3 — /code modules & ROM validation", () => {
 
-describe("EmuDevz /code layout contract", () => {
   it("(1) there is a /code/Cartridge.js file", () => {
     expect(existsSync(join(codeDir, "Cartridge.js"))).toBe(true);
   });
@@ -49,16 +43,32 @@ describe("EmuDevz /code layout contract", () => {
     expect(indexMod.default.Cartridge).toBe(cartridgeMod.default);
   });
 
-  it("(5) instantiating Cartridge with a valid header sets a bytes property", async () => {
+  it("(5) instantiating Cartridge with a valid header saves a bytes property (gamespec 3.3)", async () => {
     const { default: Cartridge } = await import(codeUrl("Cartridge.js"));
-    const rom = romWithHeader();
-    const cart = new Cartridge(rom);
-    expect(cart).toHaveProperty("bytes", rom);
+    const bytes = new Uint8Array([
+      0x4e,
+      0x45,
+      0x53,
+      0x1a,
+      ...new Uint8Array(12),
+    ]);
+    expect(new Cartridge(bytes).bytes).toBe(bytes);
   });
 
-  it("(6) instantiating Cartridge with an invalid header throws", async () => {
+  it("(6) instantiating Cartridge with an invalid header throws (gamespec 3.3)", async () => {
     const { default: Cartridge } = await import(codeUrl("Cartridge.js"));
-    const bad = romWithHeader([0, 0, 0, 0]);
-    expect(() => new Cartridge(bad)).toThrowError(/invalid rom/i);
+
+    const wrongPatterns = [
+      [0x11, 0x22, 0x33, 0x44, ...new Uint8Array(12)],
+      [0x99, 0x45, 0x53, 0x1a, ...new Uint8Array(12)],
+      [0x4e, 0x99, 0x53, 0x1a, ...new Uint8Array(12)],
+      [0x4e, 0x45, 0x99, 0x1a, ...new Uint8Array(12)],
+      [0x4e, 0x45, 0x53, 0x99, ...new Uint8Array(12)],
+    ];
+
+    for (const wrong of wrongPatterns) {
+      const bytes = new Uint8Array(wrong);
+      expect(() => new Cartridge(bytes)).toThrowError(/Invalid ROM/);
+    }
   });
 });
