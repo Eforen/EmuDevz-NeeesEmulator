@@ -1,4 +1,6 @@
 const RAM_SIZE = 0x0800;
+const CONTROLLER_1_ADDRESS = 0x4016;
+const CONTROLLER_2_ADDRESS = 0x4017;
 export default class CPUMemory {
     ram;
     ppu;
@@ -28,6 +30,10 @@ export default class CPUMemory {
             return this.read(0x0000 + (address - 0x0800) % 0x0800);
         if (address >= 0x2008 && address <= 0x3fff)
             return this.read(0x2000 + (address - 0x2008) % 0x0008);
+        if (address == CONTROLLER_1_ADDRESS)
+            return this.controllers[0].onRead();
+        if (address == CONTROLLER_2_ADDRESS)
+            return this.controllers[1].onRead();
         if (address >= 0x4020 && address <= 0xffff)
             return this.mapper.cpuRead(address);
         return 0;
@@ -41,6 +47,8 @@ export default class CPUMemory {
             return this.write(0x0000 + (address - 0x0800) % 0x0800, value);
         if (address >= 0x2008 && address <= 0x3fff)
             return this.write(0x2000 + (address - 0x2008) % 0x0008, value);
+        if (address == CONTROLLER_1_ADDRESS)
+            return this.controllers[0].onWrite(value);
         if (address >= 0x4020 && address <= 0xffff)
             return this.mapper.cpuWrite(address, value);
     }

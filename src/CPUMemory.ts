@@ -1,3 +1,5 @@
+import type Controller from "./Controller";
+
 const RAM_SIZE = 0x0800;
 const CONTROLLER_1_ADDRESS = 0x4016;
 const CONTROLLER_2_ADDRESS = 0x4017;
@@ -14,16 +16,12 @@ type Mapper = {
     cpuRead(address: number): number;
     cpuWrite(address: number, value: number): void;
 }; // Currently I don't know the full structure the game will use for this.
-type Controllers = {
-    cpuRead(address: number): number;
-    cpuWrite(address: number, value: number): void;
-}; // Currently I don't know what structure the game will use for this.
 export default class CPUMemory {
     ram: Uint8Array;
     ppu: PPU | null;
     apu: APU | null;
     mapper: Mapper | null;
-    controllers: Controllers | null;
+    controllers: Controller[] | null;
     loaded: boolean;
 
     constructor() {
@@ -35,7 +33,7 @@ export default class CPUMemory {
         this.loaded = false;
     }
 
-    onLoad(ppu: PPU, apu: APU, mapper: Mapper, controllers: Controllers): void {
+    onLoad(ppu: PPU, apu: APU, mapper: Mapper, controllers: Controller[]): void {
         this.ppu = ppu;
         this.apu = apu;
         this.mapper = mapper;
@@ -72,10 +70,12 @@ export default class CPUMemory {
         /* TODO: IMPLEMENT */
 
         // 🎮 Controller port 1
-        /* TODO: IMPLEMENT */
+        if (address == CONTROLLER_1_ADDRESS)
+            return this.controllers![0].onRead();
 
         // 🎮 Controller port 2
-        /* TODO: IMPLEMENT */
+        if (address == CONTROLLER_2_ADDRESS)
+            return this.controllers![1].onRead();
 
         // 💾 Cartridge space (PRG-ROM, mapper, etc.)
         /* TODO: IMPLEMENT */
@@ -115,7 +115,8 @@ export default class CPUMemory {
     /* TODO: IMPLEMENT */
 
     // 🎮 Controller port 1
-    /* TODO: IMPLEMENT */
+    if (address == CONTROLLER_1_ADDRESS)
+        return this.controllers![0].onWrite(value);
 
     // 🔊 APUFrameCounter register
     /* TODO: IMPLEMENT */
