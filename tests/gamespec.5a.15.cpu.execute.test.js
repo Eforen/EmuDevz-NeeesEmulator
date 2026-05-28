@@ -1,251 +1,234 @@
-// 5a.15 Execute
+/**
+ * EmuDevz gamespec §5a.15 — CPU execute / fetch / step (Vitest).
+ * Intended to fail until fetch/step helpers and `operations` exist; do not skip.
+ */
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
-it("can fetch the next operation", () => {
-  const { instructions, addressingModes } = mainModule.default;
+const testsDir = dirname(fileURLToPath(import.meta.url));
+const root = dirname(testsDir);
+const codeDir = join(root, "code");
 
-  // NOP ; LDA #$05 ; STA $0201 ; LDX $0201
-  const cpu = newCPU([0xea, 0xa9, 0x05, 0x8d, 0x01, 0x02, 0xae, 0x01, 0x02]);
-  cpu.pc.setValue(0x8000);
-  expect(cpu).to.respondTo("_fetchOperation");
+function codeHref(rel) {
+  return pathToFileURL(join(codeDir, rel)).href;
+}
 
-  // NOP
-  expect($$(cpu._fetchOperation())).to.eql(
-    $$({
-      id: 0xea,
-      instruction: instructions.NOP,
-      cycles: 2,
-      addressingMode: addressingModes.IMPLICIT,
-    })
-  );
+async function evaluate(path) {
+  if (path === undefined) return import(codeHref("index.js"));
+  throw new Error(`evaluate(${path})`);
+}
 
-  // LDA #$05
-  expect($$(cpu._fetchOperation())).to.eql(
-    $$({
-      id: 0xa9,
-      instruction: instructions.LDA,
-      cycles: 2,
-      addressingMode: addressingModes.IMMEDIATE,
-    })
-  );
+const $$ = (obj) => JSON.parse(JSON.stringify(obj));
 
-  // STA $0201
-  cpu.pc.increment(); // skip input
-  expect($$(cpu._fetchOperation())).to.eql(
-    $$({
-      id: 0x8d,
-      instruction: instructions.STA,
-      cycles: 4,
-      addressingMode: addressingModes.ABSOLUTE,
-    })
-  );
-})({
-  locales: {
-    es: "puede ir a buscar la próxima operación",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
-});
+describe("gamespec 5a.15 CPU execute", () => {
+  let mainModule;
 
-it("throws an error when it finds an <invalid> opcode", () => {
-  // ??? (0x02)
-  const cpu = newCPU([0x02]);
-  cpu.pc.setValue(0x8000);
-  expect(cpu).to.respondTo("_fetchOperation");
+  beforeAll(async () => {
+    mainModule = await evaluate();
+  });
 
-  // 0x02
-  expect(() => cpu._fetchOperation()).to.throw(Error, /Invalid opcode/);
-})({
-  locales: {
-    es: "tira un error cuando encuentra un opcode <inválido>",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
-});
+  function newCPU(prgBytes = []) {
+    const CPU = mainModule.default.CPU;
+    const CPUMemory = mainModule.default.CPUMemory;
+    const cpuMemory = new CPUMemory();
+    const cpu = new CPU(cpuMemory);
 
-it("can fetch the <next input>", () => {
-  // NOP ; LDA #$05 ; STA $0201 ; LDX $0201
-  const cpu = newCPU([0xea, 0xa9, 0x05, 0x8d, 0x01, 0x02, 0xae, 0x01, 0x02]);
-  cpu.pc.setValue(0x8000);
-  expect(cpu).to.respondTo("_fetchInput");
+    if (prgBytes.length > 0) {
+      const prgRom = new Uint8Array(Math.max(16384, prgBytes.length));
+      for (let i = 0; i < prgBytes.length; i++) prgRom[i] = prgBytes[i];
 
-  // NOP
-  cpu.pc.increment(); // skip opcode
-  expect(cpu._fetchInput(cpu.operations[0xea])).to.equalN(
-    null,
-    "operations[0xea]"
-  );
+      const mapper = {
+        cpuRead(address) {
+          if (address >= 0x8000 && address < 0x8000 + prgRom.length)
+            return prgRom[address - 0x8000];
+          return 0;
+        },
+        cpuWrite() {},
+      };
 
-  // LDA #$05
-  cpu.pc.increment(); // skip opcode
-  expect(cpu._fetchInput(cpu.operations[0xa9])).to.equalHex(
-    0x05,
-    "operations[0xa9]"
-  );
+      cpuMemory.onLoad(
+        {} /* ppu */,
+        { registers: { write: () => {} } } /* apu */,
+        mapper,
+        [] /* controllers */,
+      );
+    }
 
-  // STA $0201
-  cpu.pc.increment(); // skip opcode
-  expect(cpu._fetchInput(cpu.operations[0x8d])).to.equalHex(
-    0x0201,
-    "operations[0x8d]"
-  );
-})({
-  locales: {
-    es: "puede ir a buscar el <próximo input>",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
-});
+    return cpu;
+  }
 
-it("can fetch <the argument> based on `operation` and `input`", () => {
-  const cpu = newCPU();
-  expect(cpu).to.respondTo("_fetchArgument");
+  it("can fetch the next operation", () => {
+    const { instructions, addressingModes } = mainModule.default;
 
-  // DEC $40,X -> argument === "address"
-  cpu.x.setValue(6);
-  expect(cpu._fetchArgument(cpu.operations[0xd6], 0x40)).to.equalHex(0x46);
+    // NOP ; LDA #$05 ; STA $0201 ; LDX $0201
+    const cpu = newCPU([0xea, 0xa9, 0x05, 0x8d, 0x01, 0x02, 0xae, 0x01, 0x02]);
+    cpu.pc.setValue(0x8000);
+    expect(typeof cpu._fetchOperation).toBe("function");
 
-  // LDA #$05 -> argument === "value"
-  cpu.a.setValue(8);
-  expect(cpu._fetchArgument(cpu.operations[0xa9], 0x05)).to.equalHex(0x05);
-})({
-  locales: {
-    es: "puede ir a buscar <el argumento> basándose en `operation` e `input`",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
-});
+    // NOP
+    expect($$(cpu._fetchOperation())).toEqual(
+      $$({
+        id: 0xea,
+        instruction: instructions.NOP,
+        cycles: 2,
+        addressingMode: addressingModes.IMPLICIT,
+      }),
+    );
 
-it("can add cycles based on `operation`", () => {
-  const cpu = newCPU();
-  expect(cpu).to.respondTo("_addCycles");
+    // LDA #$05
+    expect($$(cpu._fetchOperation())).toEqual(
+      $$({
+        id: 0xa9,
+        instruction: instructions.LDA,
+        cycles: 2,
+        addressingMode: addressingModes.IMMEDIATE,
+      }),
+    );
 
-  // DEC $40,X (6 cycles)
-  cpu.cycle = 3;
-  cpu.extraCycles = 9;
-  expect(cpu._addCycles(cpu.operations[0xd6])).to.equalN(15, "_addCycles(...)");
-  expect(cpu.cycle).to.equalN(18, "cycle");
-  expect(cpu.extraCycles).to.equalN(0, "extraCycles");
-})({
-  locales: {
-    es: "puede agregar ciclos basándose en `operation`",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
-});
+    // STA $0201
+    cpu.pc.increment(); // skip input
+    expect($$(cpu._fetchOperation())).toEqual(
+      $$({
+        id: 0x8d,
+        instruction: instructions.STA,
+        cycles: 4,
+        addressingMode: addressingModes.ABSOLUTE,
+      }),
+    );
+  });
 
-it("can run 4 simple operations, updating all counters, and calling a `logger` function", () => {
-  // NOP ; LDA #$05 ; STA $0201 ; LDX $0201
-  const cpu = newCPU([0xea, 0xa9, 0x05, 0x8d, 0x01, 0x02, 0xae, 0x01, 0x02]);
-  expect(cpu).to.respondTo("step");
-  let cycles;
-  cpu.pc.setValue(0x8000);
-  cpu.cycle = 7;
+  it("throws an error when it finds an <invalid> opcode", () => {
+    // ??? (0x02)
+    const cpu = newCPU([0x02]);
+    cpu.pc.setValue(0x8000);
+    expect(typeof cpu._fetchOperation).toBe("function");
 
-  // NOP
-  cpu.logger = sinon.spy();
-  cycles = cpu.step();
-  expect(cycles).to.equalN(2, "NOP => cycles");
-  expect(cpu.pc.getValue()).to.equalHex(0x8001, "NOP => pc");
-  expect(cpu.cycle).to.equalN(9, "NOP => cycle");
-  try {
-    expect(cpu.logger).to.have.been.calledWith(
+    expect(() => cpu._fetchOperation()).toThrow(/Invalid opcode/);
+  });
+
+  it("can fetch the <next input>", () => {
+    // NOP ; LDA #$05 ; STA $0201 ; LDX $0201
+    const cpu = newCPU([0xea, 0xa9, 0x05, 0x8d, 0x01, 0x02, 0xae, 0x01, 0x02]);
+    cpu.pc.setValue(0x8000);
+    expect(typeof cpu._fetchInput).toBe("function");
+
+    // NOP
+    cpu.pc.increment(); // skip opcode
+    expect(cpu._fetchInput(cpu.operations[0xea]), "operations[0xea]").toBe(null);
+
+    // LDA #$05
+    cpu.pc.increment(); // skip opcode
+    expect(cpu._fetchInput(cpu.operations[0xa9]), "operations[0xa9]").toBe(0x05);
+
+    // STA $0201
+    cpu.pc.increment(); // skip opcode
+    expect(cpu._fetchInput(cpu.operations[0x8d]), "operations[0x8d]").toBe(
+      0x0201,
+    );
+  });
+
+  it("can fetch <the argument> based on `operation` and `input`", () => {
+    const cpu = newCPU();
+    expect(typeof cpu._fetchArgument).toBe("function");
+
+    // DEC $40,X -> argument === "address"
+    cpu.x.setValue(6);
+    expect(cpu._fetchArgument(cpu.operations[0xd6], 0x40)).toBe(0x46);
+
+    // LDA #$05 -> argument === "value"
+    cpu.a.setValue(8);
+    expect(cpu._fetchArgument(cpu.operations[0xa9], 0x05)).toBe(0x05);
+  });
+
+  it("can add cycles based on `operation`", () => {
+    const cpu = newCPU();
+    expect(typeof cpu._addCycles).toBe("function");
+
+    // DEC $40,X (6 cycles)
+    cpu.cycle = 3;
+    cpu.extraCycles = 9;
+    expect(cpu._addCycles(cpu.operations[0xd6]), "_addCycles(...)").toBe(15);
+    expect(cpu.cycle, "cycle").toBe(18);
+    expect(cpu.extraCycles, "extraCycles").toBe(0);
+  });
+
+  it("can run 4 simple operations, updating all counters, and calling a `logger` function", () => {
+    // NOP ; LDA #$05 ; STA $0201 ; LDX $0201
+    const cpu = newCPU([0xea, 0xa9, 0x05, 0x8d, 0x01, 0x02, 0xae, 0x01, 0x02]);
+    expect(typeof cpu.step).toBe("function");
+    let cycles;
+    cpu.pc.setValue(0x8000);
+    cpu.cycle = 7;
+
+    // NOP
+    cpu.logger = vi.fn();
+    cycles = cpu.step();
+    expect(cycles, "NOP => cycles").toBe(2);
+    expect(cpu.pc.getValue(), "NOP => pc").toBe(0x8001);
+    expect(cpu.cycle, "NOP => cycle").toBe(9);
+    expect(cpu.logger).toHaveBeenCalledWith(
       cpu,
       0x8000,
       cpu.operations[0xea],
       null,
-      null
+      null,
     );
-  } catch (e) {
-    throw new Error(
-      `\`this.logger\` should have been called with (cpu, 0x8000, cpu.operations[0xea], null, null)`
-    );
-  }
 
-  // LDA #$05
-  cpu.logger = sinon.spy();
-  cycles = cpu.step();
-  expect(cycles).to.equalN(2, "LDA #$05 => cycles");
-  expect(cpu.pc.getValue()).to.equalHex(0x8003, "LDA #$05 => pc");
-  expect(cpu.cycle).to.equalN(11, "LDA #$05 => cycle");
-  try {
-    expect(cpu.logger).to.have.been.calledWith(
+    // LDA #$05
+    cpu.logger = vi.fn();
+    cycles = cpu.step();
+    expect(cycles, "LDA #$05 => cycles").toBe(2);
+    expect(cpu.pc.getValue(), "LDA #$05 => pc").toBe(0x8003);
+    expect(cpu.cycle, "LDA #$05 => cycle").toBe(11);
+    expect(cpu.logger).toHaveBeenCalledWith(
       cpu,
       0x8001,
       cpu.operations[0xa9],
       0x05,
-      0x05
+      0x05,
     );
-  } catch (e) {
-    throw new Error(
-      `\`this.logger\` should have been called with (cpu, 0x8001, cpu.operations[0xa9], 0x05, 0x05)`
-    );
-  }
 
-  // STA $0201
-  cpu.logger = sinon.spy();
-  cycles = cpu.step();
-  expect(cycles).to.equalN(4, "STA $0201 => cycles");
-  expect(cpu.pc.getValue()).to.equalHex(0x8006, "STA $0201 => pc");
-  expect(cpu.cycle).to.equalN(15, "STA $0201 => cycle");
-  try {
-    expect(cpu.logger).to.have.been.calledWith(
+    // STA $0201
+    cpu.logger = vi.fn();
+    cycles = cpu.step();
+    expect(cycles, "STA $0201 => cycles").toBe(4);
+    expect(cpu.pc.getValue(), "STA $0201 => pc").toBe(0x8006);
+    expect(cpu.cycle, "STA $0201 => cycle").toBe(15);
+    expect(cpu.logger).toHaveBeenCalledWith(
       cpu,
       0x8003,
       cpu.operations[0x8d],
       0x0201,
-      0x0201
+      0x0201,
     );
-  } catch (e) {
-    throw new Error(
-      `\`this.logger\` should have been called with (cpu, 0x8003, cpu.operations[0x8d], 0x0201, 0x0201)`
-    );
-  }
 
-  // LDX $0201
-  cpu.logger = sinon.spy();
-  cycles = cpu.step();
-  expect(cycles).to.equalN(4, "LDX $0201 => cycles");
-  expect(cpu.pc.getValue()).to.equalHex(0x8009, "LDX $0201 => pc");
-  expect(cpu.cycle).to.equalN(19, "LDX $0201 => cycle");
-  try {
-    expect(cpu.logger).to.have.been.calledWith(
+    // LDX $0201
+    cpu.logger = vi.fn();
+    cycles = cpu.step();
+    expect(cycles, "LDX $0201 => cycles").toBe(4);
+    expect(cpu.pc.getValue(), "LDX $0201 => pc").toBe(0x8009);
+    expect(cpu.cycle, "LDX $0201 => cycle").toBe(19);
+    expect(cpu.logger).toHaveBeenCalledWith(
       cpu,
       0x8006,
       cpu.operations[0xae],
       0x0201,
-      0x0005
+      0x0005,
     );
-  } catch (e) {
-    throw new Error(
-      `\`this.logger\` should have been called with (cpu, 0x8006, cpu.operations[0xae], 0x0201, 0x0005)`
-    );
-  }
-})({
-  locales: {
-    es:
-      "puede ejecutar 4 operaciones simples, actualizando todos los contadores, y llamando a una función `logger`",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
-});
+  });
 
-it("doesn't crash if `logger` is `null` or `undefined`", () => {
-  const cpu = newCPU([0xea, 0xea]);
+  it("doesn't crash if `logger` is `null` or `undefined`", () => {
+    const cpu = newCPU([0xea, 0xea]);
 
-  // logger = null
-  cpu.pc.setValue(0x8000);
-  cpu.logger = null;
-  try {
-    cpu.step();
-  } catch (e) {
-    throw new Error("step() crashed when logger === null");
-  }
+    // logger = null
+    cpu.pc.setValue(0x8000);
+    cpu.logger = null;
+    expect(() => cpu.step()).not.toThrow();
 
-  // logger = undefined
-  cpu.pc.setValue(0x8000);
-  cpu.logger = undefined;
-  try {
-    cpu.step();
-  } catch (e) {
-    throw new Error("step() crashed when logger === undefined");
-  }
-})({
-  locales: {
-    es: "no crashea si `logger` es `null` o `undefined`",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.15"),
+    // logger = undefined
+    cpu.pc.setValue(0x8000);
+    cpu.logger = undefined;
+    expect(() => cpu.step()).not.toThrow();
+  });
 });

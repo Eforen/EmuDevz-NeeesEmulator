@@ -1,84 +1,101 @@
-// 5a.4 Helpers
-it("can <increment> and <decrement> registers", () => {
-  const cpu = newCPU();
-  const a = cpu.a.getValue();
-  const pc = cpu.pc.getValue();
+/**
+ * EmuDevz gamespec §5a.4 — CPU helpers (Vitest).
+ * Intended to fail until register increment/decrement and flag helpers exist; do not skip.
+ */
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
-  ["a", "x", "y", "sp", "pc"].forEach((register) => {
-    expect(cpu[register], register).to.respondTo("increment");
-    expect(cpu[register], register).to.respondTo("decrement");
+const testsDir = dirname(fileURLToPath(import.meta.url));
+const root = dirname(testsDir);
+const codeDir = join(root, "code");
+
+function codeHref(rel) {
+  return pathToFileURL(join(codeDir, rel)).href;
+}
+
+async function evaluate(path) {
+  if (path === undefined) return import(codeHref("index.js"));
+  throw new Error(`evaluate(${path})`);
+}
+
+describe("gamespec 5a.4 CPU helpers", () => {
+  let mainModule;
+
+  beforeAll(async () => {
+    mainModule = await evaluate();
   });
 
-  cpu.a.increment();
-  cpu.a.increment();
-  cpu.a.increment();
-  cpu.a.decrement();
+  function newCPU() {
+    const CPU = mainModule.default.CPU;
+    return new CPU();
+  }
 
-  cpu.pc.increment();
-  cpu.pc.increment();
-  cpu.pc.increment();
-  cpu.pc.increment();
-  cpu.pc.decrement();
-  cpu.pc.decrement();
+  it("can <increment> and <decrement> registers", () => {
+    const cpu = newCPU();
+    const a = cpu.a.getValue();
+    const pc = cpu.pc.getValue();
 
-  expect(cpu.a.getValue()).to.equalN(a + 3 - 1, "getValue()");
-  expect(cpu.pc.getValue()).to.equalHex(pc + 4 - 2, "getValue()");
-})({
-  locales: {
-    es: "puede <incrementar> y <decrementar> registros",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.4"),
-});
+    ["a", "x", "y", "sp", "pc"].forEach((register) => {
+      expect(typeof cpu[register].increment, `${register}.increment`).toBe(
+        "function",
+      );
+      expect(typeof cpu[register].decrement, `${register}.decrement`).toBe(
+        "function",
+      );
+    });
 
-it("can update the Zero Flag", () => {
-  const cpu = newCPU();
-  expect(cpu.flags.z).to.equalN(false, "z");
+    cpu.a.increment();
+    cpu.a.increment();
+    cpu.a.increment();
+    cpu.a.decrement();
 
-  expect(cpu.flags).to.respondTo("updateZero");
+    cpu.pc.increment();
+    cpu.pc.increment();
+    cpu.pc.increment();
+    cpu.pc.increment();
+    cpu.pc.decrement();
+    cpu.pc.decrement();
 
-  cpu.flags.updateZero(0);
-  expect(cpu.flags.z).to.equalN(true, "z");
+    expect(cpu.a.getValue(), "getValue()").toBe(a + 3 - 1);
+    expect(cpu.pc.getValue(), "getValue()").toBe(pc + 4 - 2);
+  });
 
-  cpu.flags.updateZero(50);
-  expect(cpu.flags.z).to.equalN(false, "z");
-})({
-  locales: {
-    es: "puede actualizar la Bandera Zero",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.4"),
-});
+  it("can update the Zero Flag", () => {
+    const cpu = newCPU();
+    expect(cpu.flags.z, "z").toBe(false);
 
-it("can update the Negative Flag", () => {
-  const cpu = newCPU();
-  expect(cpu.flags.n).to.equalN(false, "n");
+    expect(typeof cpu.flags.updateZero).toBe("function");
 
-  expect(cpu.flags).to.respondTo("updateNegative");
+    cpu.flags.updateZero(0);
+    expect(cpu.flags.z, "z").toBe(true);
 
-  cpu.flags.updateNegative(129);
-  expect(cpu.flags.n).to.equalN(true, "n");
+    cpu.flags.updateZero(50);
+    expect(cpu.flags.z, "z").toBe(false);
+  });
 
-  cpu.flags.updateNegative(2);
-  expect(cpu.flags.n).to.equalN(false, "n");
-})({
-  locales: {
-    es: "puede actualizar la Bandera Negative",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.4"),
-});
+  it("can update the Negative Flag", () => {
+    const cpu = newCPU();
+    expect(cpu.flags.n, "n").toBe(false);
 
-it("can update the Zero and Negative flags", () => {
-  const cpu = newCPU();
+    expect(typeof cpu.flags.updateNegative).toBe("function");
 
-  expect(cpu.flags).to.respondTo("updateZeroAndNegative");
-  sinon.spy(cpu.flags, "updateZero");
-  sinon.spy(cpu.flags, "updateNegative");
+    cpu.flags.updateNegative(129);
+    expect(cpu.flags.n, "n").toBe(true);
 
-  cpu.flags.updateZeroAndNegative(28);
-  expect(cpu.flags.updateZero).to.have.been.calledWith(28);
-  expect(cpu.flags.updateNegative).to.have.been.calledWith(28);
-})({
-  locales: {
-    es: "puede actualizar las Banderas Zero y Negative",
-  },
-  use: ({ id }, book) => id >= book.getId("5a.4"),
+    cpu.flags.updateNegative(2);
+    expect(cpu.flags.n, "n").toBe(false);
+  });
+
+  it("can update the Zero and Negative flags", () => {
+    const cpu = newCPU();
+
+    expect(typeof cpu.flags.updateZeroAndNegative).toBe("function");
+    vi.spyOn(cpu.flags, "updateZero");
+    vi.spyOn(cpu.flags, "updateNegative");
+
+    cpu.flags.updateZeroAndNegative(28);
+    expect(cpu.flags.updateZero).toHaveBeenCalledWith(28);
+    expect(cpu.flags.updateNegative).toHaveBeenCalledWith(28);
+  });
 });
