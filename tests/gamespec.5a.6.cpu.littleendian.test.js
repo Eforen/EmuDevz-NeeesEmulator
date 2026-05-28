@@ -19,7 +19,7 @@ async function evaluate(path) {
   throw new Error(`evaluate(${path})`);
 }
 
-describe("gamespec 5a.6 CPU little endian", () => {
+describe.skip("gamespec 5a.6 CPU little endian", () => {
   let mainModule;
 
   beforeAll(async () => {

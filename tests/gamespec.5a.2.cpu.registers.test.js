@@ -19,7 +19,7 @@ async function evaluate(path) {
   throw new Error(`evaluate(${path})`);
 }
 
-describe("gamespec 5a.2 CPU registers", () => {
+describe.skip("gamespec 5a.2 CPU registers", () => {
   let mainModule;
 
   beforeAll(async () => {

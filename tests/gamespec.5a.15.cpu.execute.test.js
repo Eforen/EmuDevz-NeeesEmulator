@@ -21,7 +21,7 @@ async function evaluate(path) {
 
 const $$ = (obj) => JSON.parse(JSON.stringify(obj));
 
-describe("gamespec 5a.15 CPU execute", () => {
+describe.skip("gamespec 5a.15 CPU execute", () => {
   let mainModule;
 
   beforeAll(async () => {

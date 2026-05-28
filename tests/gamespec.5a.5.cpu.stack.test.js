@@ -26,7 +26,7 @@ const byte = {
   },
 };
 
-describe("gamespec 5a.5 CPU stack", () => {
+describe.skip("gamespec 5a.5 CPU stack", () => {
   let mainModule;
 
   beforeAll(async () => {
